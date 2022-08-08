@@ -9,12 +9,10 @@ namespace Library.Controllers
     [Route("api/recommended")]
     public class RecommendedController : ControllerBase
     {
-        private readonly ILogger<RecommendedController> _logger;
         private readonly ApiDBContext context;
         private readonly BookService bookService;
-        public RecommendedController(ILogger<RecommendedController> logger, ApiDBContext _context, BookService _bookService)
+        public RecommendedController(ApiDBContext _context, BookService _bookService)
         {
-            _logger = logger;
             context = _context;
             bookService = _bookService;
         }

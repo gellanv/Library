@@ -9,18 +9,15 @@ namespace Library.Controllers
     [Route("api/books")]
     public class BooksController : ControllerBase
     {
-        private readonly ILogger<BooksController> logger;
         private readonly BookService bookService;
         private readonly ReviewService reviewService;
         private readonly RatingService ratingService;
-        public BooksController(ILogger<BooksController> _logger, BookService _bookService, ReviewService _reviewService, RatingService _ratingService)
+        public BooksController(BookService _bookService, ReviewService _reviewService, RatingService _ratingService)
         {
-            logger = _logger;
             bookService = _bookService;
             reviewService = _reviewService;
             ratingService = _ratingService;
         }
-
 
         //https://{{baseUrl}}/api/books?order=author
         [HttpGet]
@@ -58,7 +55,7 @@ namespace Library.Controllers
             var result = saveBookDtoRequest.Id == null ? await bookService.AddBook(saveBookDtoRequest, image)
                 : await bookService.UpdateBook(saveBookDtoRequest, image);
 
-            return Created("api/books/save", new { Id = result });           
+            return Created("api/books/save", new { Id = result });
         }
 
         //    PUT https://{{baseUrl}}/api/books/{id}/review
@@ -67,7 +64,7 @@ namespace Library.Controllers
         {
             var result = await reviewService.SaveReview(id, saveReviewDtoRequest);
 
-            return Created($"api/books/{id}/review", new { Id = result });          
+            return Created($"api/books/{id}/review", new { Id = result });
         }
 
 
