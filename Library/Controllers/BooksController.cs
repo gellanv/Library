@@ -21,27 +21,30 @@ namespace Library.Controllers
             ratingService = _ratingService;
         }
 
+
         //https://{{baseUrl}}/api/books?order=author
         [HttpGet]
-        public async Task<IEnumerable<GetAllBooksDtoResponse>> GetAllBooks(string order)
+        public async Task<ActionResult<IEnumerable<GetAllBooksDtoResponse>>> GetAllBooks(string? order)
         {
             IEnumerable<GetAllBooksDtoResponse> getAllBooksDtoResponse = await bookService.GetAllBooks(order);
 
-            return getAllBooksDtoResponse;
+            if (getAllBooksDtoResponse == null)
+                return new NoContentResult();
+            else return Ok(getAllBooksDtoResponse);
         }
 
         //https://{{baseUrl}}/api/books/{id}
         [HttpGet("{id}")]
-        public async Task<GetBookByIdDtoResponse> GetBookById(int id)
+        public async Task<ActionResult<GetBookByIdDtoResponse>> GetBookById(int id)
         {
             GetBookByIdDtoResponse getBookByIdDtoResponse = await bookService.GetBookById(id);
 
-            return getBookByIdDtoResponse;
+            return Ok(getBookByIdDtoResponse);
         }
 
         //DELETE https://{{baseUrl}}/api/books/{id}?secret=qwerty
         [HttpDelete("{id}")]
-        public async Task<IActionResult> DellBookById(int id, string secret)
+        public async Task<IActionResult> DellBookById(int id, [FromForm] string secret)
         {
             await bookService.DellBookById(id, secret);
 
@@ -50,21 +53,21 @@ namespace Library.Controllers
 
         //POST https://{{baseUrl}}/api/books/save
         [HttpPost]
-        public async Task<int> SaveBook([FromForm] SaveBookDtoRequest saveBookDtoRequest, IFormFile image)
+        public async Task<ActionResult<int>> SaveBook([FromForm] SaveBookDtoRequest saveBookDtoRequest, IFormFile image)
         {
             var result = saveBookDtoRequest.Id == null ? await bookService.AddBook(saveBookDtoRequest, image)
                 : await bookService.UpdateBook(saveBookDtoRequest, image);
 
-            return result;
+            return Created("api/books/save", new { Id = result });           
         }
 
         //    PUT https://{{baseUrl}}/api/books/{id}/review
         [HttpPut("{id}/review")]
-        public async Task<int> SaveReview(int id, SaveReviewDtoRequest saveReviewDtoRequest)
+        public async Task<ActionResult<int>> SaveReview(int id, SaveReviewDtoRequest saveReviewDtoRequest)
         {
             var result = await reviewService.SaveReview(id, saveReviewDtoRequest);
 
-            return result;
+            return Created($"api/books/{id}/review", new { Id = result });          
         }
 
 

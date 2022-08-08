@@ -1,5 +1,6 @@
 ﻿using Library.Data;
-using Library.Data.Models;
+using Library.DTO.Response;
+using Library.Services;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Library.Controllers
@@ -10,27 +11,23 @@ namespace Library.Controllers
     {
         private readonly ILogger<RecommendedController> _logger;
         private readonly ApiDBContext context;
-        public RecommendedController(ILogger<RecommendedController> logger, ApiDBContext _context)
+        private readonly BookService bookService;
+        public RecommendedController(ILogger<RecommendedController> logger, ApiDBContext _context, BookService _bookService)
         {
             _logger = logger;
             context = _context;
+            bookService = _bookService;
         }
 
+        //GET https://{{baseUrl}}/api/recommended?genre=horror
         [HttpGet]
-        public IEnumerable<Book> Get()
+        public async Task<ActionResult<IEnumerable<GetAllBooksDtoResponse>>> GetRecommendBooks(string? genre)
         {
-            return context.Books;
-        }
-        //### 2. Get top 10 books with high rating and number of reviews greater than 10. You can filter books by specifying genre. Order by rating
-        //        GET https://{{baseUrl}}/api/recommended?genre=horror
+            IEnumerable<GetAllBooksDtoResponse> getAllBooksDtoResponse = await bookService.GetRecommendBooks(genre);
 
-        //# Response
-        //# [{
-        //# 	"id": "number",
-        //# 	"title": "string",
-        //# 	"author": "string",
-        //# 	"rating": "decimal",          	average rating
-        //# 	"reviewsNumber": "decimal"    	count of reviews
-        //# }]
+            if (getAllBooksDtoResponse == null)
+                return new NoContentResult();
+            else return Ok(getAllBooksDtoResponse);
+        }
     }
 }

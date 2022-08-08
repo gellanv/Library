@@ -7,8 +7,8 @@
         public string Author { get; set; }
         public string Cover { get; set; }
         public string Content { get; set; }
-        public decimal Rating { get; set; }//	average rating
-        public List<ReviewDto> reviewDtos { get; set; }//count of reviews
+        public decimal Rating { get; set; }
+        public List<ReviewDto> reviewDtos { get; set; }
         public class ReviewDto
         {
             public int Id { get; set; }

@@ -1,3 +1,4 @@
+using Library.Behaviors;
 using Library.Data;
 using Library.Mappings;
 using Library.Services;
@@ -18,6 +19,9 @@ builder.Services.AddAutoMapper(typeof(MappingProfile));
 builder.Services.AddScoped<BookService>();
 builder.Services.AddScoped<ReviewService>();
 builder.Services.AddScoped<RatingService>();
+builder.Services.AddScoped<SaveBookRequestValidation>();
+builder.Services.AddScoped<SaveReviewRequestValidation>();
+builder.Services.AddScoped<VariableValidation>();
 
 var app = builder.Build();
 

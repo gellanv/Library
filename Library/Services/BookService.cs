@@ -1,9 +1,13 @@
 ﻿using AutoMapper;
+using FluentValidation.Results;
+using Library.Behaviors;
 using Library.Data;
 using Library.Data.Models;
 using Library.DTO.Request;
 using Library.DTO.Response;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Net;
 
 namespace Library.Services
 {
@@ -12,35 +16,73 @@ namespace Library.Services
         private readonly ApiDBContext context;
         private readonly IConfiguration config;
         readonly IMapper mapper;
-        public BookService(IMapper _mapper, ApiDBContext _context, IConfiguration _config)
+        private readonly SaveBookRequestValidation saveBookRequestValidation;
+        private readonly VariableValidation variableValidation;
+        public BookService(IMapper _mapper, ApiDBContext _context, IConfiguration _config, SaveBookRequestValidation _saveBookValidation, VariableValidation _variableValidation)
         {
             this.mapper = _mapper;
             this.context = _context;
             this.config = _config;
+            this.saveBookRequestValidation = _saveBookValidation;
+            this.variableValidation = _variableValidation;
         }
 
-        public async Task<List<GetAllBooksDtoResponse>> GetAllBooks(string order)
+        public async Task<List<GetAllBooksDtoResponse>> GetAllBooks(string? order)
         {
-            var result = order == "title" ?
-                await context.Books.Include(b => b.Ratings).Include(b => b.Reviews).OrderBy(x => x.Title).ToListAsync() :
-                await context.Books.Include(b => b.Ratings).Include(b => b.Reviews).OrderBy(x => x.Author).ToListAsync();
+            List<Book> result = null;
 
-            List<GetAllBooksDtoResponse> getAllBooksDtoResponse = new List<GetAllBooksDtoResponse>();
-            result.ForEach((book) =>
+            if (order == null || order == "Title")
+                result = await context.Books.Include(b => b.Ratings).Include(b => b.Reviews).OrderBy(x => x.Title).ToListAsync();
+            else
+                result = await context.Books.Include(b => b.Ratings).Include(b => b.Reviews).OrderBy(x => x.Author).ToListAsync();
+
+            if (result.Count != 0)
             {
-                GetAllBooksDtoResponse tempBook = mapper.Map<GetAllBooksDtoResponse>(book);
-                tempBook.ReviewNumber = book.Reviews.Count();
-                tempBook.Rating = book.Ratings.Select(x => x.Score).Average();
+                List<GetAllBooksDtoResponse> getAllBooksDtoResponse = new List<GetAllBooksDtoResponse>();
+                result.ForEach((book) =>
+                {
+                    GetAllBooksDtoResponse tempBook = mapper.Map<GetAllBooksDtoResponse>(book);
+                    tempBook.ReviewNumber = book.Reviews.Count();
+                    tempBook.Rating = book.Ratings.Select(x => x.Score).Average();
 
-                getAllBooksDtoResponse.Add(tempBook);
-            });
+                    getAllBooksDtoResponse.Add(tempBook);
+                });
+                return getAllBooksDtoResponse;
+            }
+            else return null;
+        }
 
-            return getAllBooksDtoResponse;
+        public async Task<List<GetAllBooksDtoResponse>> GetRecommendBooks(string? genre)
+        {
+            var allBook = genre != null ?
+                         await context.Books.Include(b => b.Ratings).Include(b => b.Reviews).Where(x => x.Genre == genre).ToListAsync() :
+                         await context.Books.Include(b => b.Ratings).Include(b => b.Reviews).ToListAsync();
+
+            if (allBook.Count != 0)
+            {
+                List<GetAllBooksDtoResponse> getAllBooksDtoResponse = new List<GetAllBooksDtoResponse>();
+                allBook.ForEach((book) =>
+                {
+                    GetAllBooksDtoResponse tempBook = mapper.Map<GetAllBooksDtoResponse>(book);
+                    tempBook.ReviewNumber = book.Reviews.Count();
+                    tempBook.Rating = book.Ratings.Select(x => x.Score).Average();
+
+                    getAllBooksDtoResponse.Add(tempBook);
+                });
+
+                var res = getAllBooksDtoResponse.Where(x => x.ReviewNumber > 10).OrderByDescending(x => x.Rating).Take(10).ToList();
+
+                return res;
+            }
+            else return null;
         }
 
         public async Task<GetBookByIdDtoResponse> GetBookById(int id)
         {
+            variableValidation.CheckId(id, $"BookId ");
+
             var result = await context.Books.Where(b => b.Id == id).Include(b => b.Reviews).Include(b => b.Ratings).FirstOrDefaultAsync();
+            variableValidation.CheckObjectForNull(result, $"book with id - {id}");
 
             GetBookByIdDtoResponse book = mapper.Map<GetBookByIdDtoResponse>(result);
             book.Rating = result.Ratings.Select(x => x.Score).Average();
@@ -60,17 +102,29 @@ namespace Library.Services
 
         public async Task DellBookById(int id, string secret)
         {
+            variableValidation.CheckId(id, $"BookId ");
+
             var SecretKey = config.GetSection("Key:KeyForDell").Value;
             if (secret.Trim() != SecretKey)
-                throw new Exception();
+                throw new Exception("SecretKey was wrong");
+
             var book = await context.Books.FirstOrDefaultAsync(b => b.Id == id);
+            variableValidation.CheckObjectForNull(book, $"book with id - {id}");
+
             context.Books.Remove(book);
             var result = await context.SaveChangesAsync();
         }
 
         public async Task<int> AddBook(SaveBookDtoRequest saveBookDtoRequest, IFormFile image)
         {
+            ValidationResult results = await saveBookRequestValidation.ValidateAsync(saveBookDtoRequest);
+            if (!results.IsValid)
+            {
+                throw new Exception(results.ToString("~"));
+            }
+
             string base64Image = ConverImage(image);
+
             Book book = mapper.Map<Book>(saveBookDtoRequest);
             book.Cover = base64Image;
             context.Books.Add(book);
@@ -80,9 +134,17 @@ namespace Library.Services
         }
         public async Task<int> UpdateBook(SaveBookDtoRequest saveBookDtoRequest, IFormFile image)
         {
+            ValidationResult results = await saveBookRequestValidation.ValidateAsync(saveBookDtoRequest);
+            if (!results.IsValid)
+            {
+                throw new Exception(results.ToString("~"));
+            }
+
             string base64Image = ConverImage(image);
 
             var book = await context.Books.FirstOrDefaultAsync(b => b.Id == saveBookDtoRequest.Id);
+            variableValidation.CheckObjectForNull(book, $"book with id - {saveBookDtoRequest.Id}");
+
             mapper.Map(saveBookDtoRequest, book);
             book.Cover = base64Image;
             await context.SaveChangesAsync();
@@ -91,20 +153,13 @@ namespace Library.Services
 
         public string ConverImage(IFormFile photo)
         {
-            //byte[] image = null;
-            //using (var binaryReader = new BinaryReader(photo.OpenReadStream()))
-            //{
-            //    image = binaryReader.ReadBytes((int)photo.Length);
-            //}
-            string base64Image = ""; /*= Convert.ToBase64String(image)*/
-
+            string base64Image = "";
 
             if (photo.Length > 0)
             {
                 using (var ms = new MemoryStream())
                 {
                     photo.CopyTo(ms);
-                    //var fileBytes = ms.ToArray();
                     base64Image = Convert.ToBase64String(ms.ToArray());
                 }
             }
