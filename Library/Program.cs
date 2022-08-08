@@ -1,6 +1,7 @@
 using Library.Behaviors;
 using Library.Data;
 using Library.Mappings;
+using Library.Middleware;
 using Library.Services;
 using Microsoft.EntityFrameworkCore;
 using System.Configuration;
@@ -39,5 +40,7 @@ app.UseHttpsRedirection();
 app.UseAuthorization();
 
 app.MapControllers();
+
+app.UseMiddleware(typeof(ExceptionHandlingMiddleware));
 
 app.Run();

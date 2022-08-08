@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using Library.Exceptions;
+using System.ComponentModel.DataAnnotations;
 
 namespace Library.Behaviors
 {
@@ -8,7 +9,7 @@ namespace Library.Behaviors
         {
             if (id <= 0)
             {
-                throw new ValidationException($"{message}{id} isn't valid");
+                throw new BadRequestCustomException($"{message}{id} isn't valid");
             }
         }
 
@@ -16,7 +17,7 @@ namespace Library.Behaviors
         {
             if (score < 1 || score > 5)
             {
-                throw new ValidationException($"Score {score} isn't valid");
+                throw new ValidationCustomException($"Score {score} isn't valid");
             }
         }
 
@@ -24,7 +25,7 @@ namespace Library.Behaviors
         {
             if (instance == null)
             {
-                throw new ValidationException($"The {message} wasn't found");
+                throw new NotFoundCustomException($"The {message} wasn't found");
             }
         }
     }
